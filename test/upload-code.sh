@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 
 NAMESPACE="faas"
 SERVICE_NAME="faas-gateway"

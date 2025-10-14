@@ -1,10 +1,10 @@
 package proxy
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"poorman-faas/pkg/util"
 	"strings"
 )
@@ -16,7 +16,8 @@ import (
 func RewriteURL(pathPrefix string, namespace string, getServiceName func(*http.Request) string) func(*httputil.ProxyRequest) {
 	return func(req *httputil.ProxyRequest) {
 		serviceName := getServiceName(req.In)
-		newPath := strings.TrimPrefix(req.In.URL.Path, fmt.Sprintf("%s/%s", pathPrefix, serviceName))
+		newPrefix := path.Join("/faas", pathPrefix, serviceName)
+		newPath := strings.TrimPrefix(req.In.URL.Path, newPrefix)
 		newHost := util.K8SInternalDNSName(namespace, serviceName)
 
 		req.Out.URL = &url.URL{

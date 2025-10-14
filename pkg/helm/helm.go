@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 	"strings"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
 )
@@ -202,6 +204,9 @@ func (s Chart) Deployment() *appsv1.Deployment {
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: s.Selector(),
+					Annotations: map[string]string{
+						"vke.volcengine.com/burst-to-vci": "enforce",
+					},
 				},
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{{
@@ -209,6 +214,7 @@ func (s Chart) Deployment() *appsv1.Deployment {
 						Image:   "ghcr.io/astral-sh/uv:python3.12-alpine",
 						Command: []string{"uv", "run", "--script", "/scripts/main.py"},
 						Ports: []apiv1.ContainerPort{{
+							// todo: make port configurable
 							ContainerPort: 8000,
 							Protocol:      apiv1.ProtocolTCP,
 						}},
@@ -281,7 +287,7 @@ func (s Chart) Service() *apiv1.Service {
 			Ports: []apiv1.ServicePort{{
 				Port:       80,
 				Protocol:   apiv1.ProtocolTCP,
-				TargetPort: intstr.FromInt(8000),
+				TargetPort: intstr.FromInt32(8000),
 			}},
 		},
 	}
@@ -304,12 +310,39 @@ func (s Chart) Deploy(ctx context.Context, clientset *kubernetes.Clientset) erro
 	if err != nil {
 		return fmt.Errorf("deploymentClient.Create(): %w", err)
 	}
+
+	// Wait until deployment is ready (with 5 minute timeout)
+	err = s.waitForDeploymentReady(ctx, clientset, 5*time.Minute)
+	if err != nil {
+		return fmt.Errorf("waitForDeploymentReady(): %w", err)
+	}
+
 	serviceClient := clientset.CoreV1().Services(ns)
 	_, err = serviceClient.Create(ctx, s.Service(), metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("serviceClient.Create(): %w", err)
 	}
 	return nil
+}
+
+// waitForDeploymentReady waits for the deployment to be ready with a timeout.
+func (s Chart) waitForDeploymentReady(ctx context.Context, clientset *kubernetes.Clientset, timeout time.Duration) error {
+	deploymentClient := clientset.AppsV1().Deployments(s.Namespace)
+
+	return wait.PollUntilContextTimeout(ctx, 1*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		deployment, err := deploymentClient.Get(ctx, s.deploymentUUID, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		// Check if deployment is ready
+		if deployment.Status.ReadyReplicas == *deployment.Spec.Replicas &&
+			deployment.Status.ReadyReplicas > 0 {
+			return true, nil
+		}
+
+		return false, nil
+	})
 }
 
 // ChartWrapper wraps a Chart with a clientset to implement the Charter interface.
@@ -336,7 +369,6 @@ func (cw *ChartWrapper) Teardown(ctx context.Context) error {
 func (cw *ChartWrapper) ServiceName() string {
 	return cw.chart.Service().Name
 }
-
 // Teardown removes the Python Faas from the k8s cluster.
 //
 // destroys in reverse order: service -> deployment -> configmap
