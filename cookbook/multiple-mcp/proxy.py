@@ -98,25 +98,6 @@ class Proxy(ProxyProtocol, LoggingMixin):
 
     server_dict: dict[str, Config]
 
-    # def __init__(self, server_configs: list[dict[str, Any]]):
-    #     """
-    #     Initialize Proxy.
-    #     :param server_configs: List of MCP server configurations
-    #     """
-    #     parsed_configs = []
-    #     for config in server_configs:
-    #         kind = config.get("kind")
-    #         if kind == "stdio":
-    #             config = StdIOConfig.model_validate(config)
-    #         elif kind == "sse":
-    #             config = SSEConfig.model_validate(config)
-    #         elif kind == "streamable_http":
-    #             config = StreamableHttpConfig.model_validate(config)
-    #         else:
-    #             raise ValueError(f"unknown kind {kind} in config")
-    #         parsed_configs.append(config)
-    #     self.server_dict = {config.name: config for config in parsed_configs}
-
     @classmethod
     def from_streamable_http(cls, files: dict[str, bytes]) -> "Proxy":
         """
