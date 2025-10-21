@@ -1,0 +1,14 @@
+set dotenv-load := true
+set dotenv-path := "{{justfile_directory()}}/.env"
+
+# default recipe to show all recipes
+default:
+	@just --list
+
+# serve mcp as http server
+serve mcp_name:
+	uv run --script mcp-{{mcp_name}}.py
+
+# run mcp-inspector
+inspector:
+    bunx @modelcontextprotocol/inspector
