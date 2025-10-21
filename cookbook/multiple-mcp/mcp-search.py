@@ -705,12 +705,12 @@ async def _wiki_get_page_content_internal(
                         )
                 else:
                     return (
-                        f"[ERROR]:Page Not Found: No Wikipedia page found for '{entity}' "
+                        f"[ERROR]: Page Not Found: No Wikipedia page found for '{entity}' "
                         f"and no similar pages were found. Please try a different search term."
                     )
             except Exception as search_error:
                 return (
-                    f"[ERROR]:Page Not Found: No Wikipedia page found for '{entity}'. "
+                    f"[ERROR]: Page Not Found: No Wikipedia page found for '{entity}'. "
                     f"Search for alternatives also failed: {str(search_error)}"
                 )
 
@@ -769,7 +769,7 @@ async def _wiki_get_page_content_internal(
                 )
         except Exception as search_error:
             return (
-                f"[ERROR]:Page Not Found: No Wikipedia page found for '{entity}'. "
+                f"[ERROR]: Page Not Found: No Wikipedia page found for '{entity}'. "
                 f"Search for alternatives also failed: {str(search_error)}"
             )
 
