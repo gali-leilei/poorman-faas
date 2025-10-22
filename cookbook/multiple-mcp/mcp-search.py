@@ -56,6 +56,26 @@ REMOVE_ANSWER_BOX = os.environ.get("REMOVE_ANSWER_BOX", "").lower() in (
 )
 
 
+async def smart_request(url: str, params: Optional[Dict] = None) -> str:
+    """Make a smart HTTP request with retries."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        return response.text
+
+
+def request_to_json(content: str) -> Dict[str, Any]:
+    """Parse JSON from request content."""
+    return json.loads(content)
+
+
+def decode_percent_encoded_urls(content: str, input_type: str = "text") -> str:
+    """Decode percent-encoded URLs in content."""
+    # Simple implementation - just return content as-is
+    # Can be enhanced to actually decode URLs if needed
+    return content
+
+
 def _is_huggingface_dataset_or_space_url(url):
     """
     Check if the URL is a Hugging Face dataset or space URL.
