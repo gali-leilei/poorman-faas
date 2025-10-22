@@ -111,6 +111,7 @@ class Proxy(ProxyProtocol, LoggingMixin):
         """
 
         responses = await client.upload_many(scripts)
+        print(responses)
         server_dict = {
             response.name: StreamableHttpConfig(
                 name=response.name,
@@ -123,7 +124,9 @@ class Proxy(ProxyProtocol, LoggingMixin):
         return cls(server_dict=server_dict)
 
     @classmethod
-    async def from_local_servers(cls, server_dict: Mapping[str, Config]) -> "Proxy":
+    async def from_local_servers(
+        cls, server_dict: Mapping[str, StreamableHttpConfig]
+    ) -> "Proxy":
         """
         Create a Proxy from a dictionary of local servers.
         :param server_dict: Dictionary of server configurations

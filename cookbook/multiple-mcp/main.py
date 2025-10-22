@@ -82,6 +82,42 @@ class TestAsyncFaas:
         # print(result)
 
 
+class TestRemoteServers:
+    @staticmethod
+    async def test_scrape():
+        script_path = Path(__file__).parent
+        scripts = [
+            UploadRequest.from_file(
+                name="scrape",
+                script_file=script_path / "mcp-scrape.py",
+                dot_file=script_path / ".env",
+            ),
+            # UploadRequest.from_file(
+            #     name="search",
+            #     script_file=script_path / "mcp-search.py",
+            #     dot_file=script_path / ".env",
+            # ),
+        ]
+        faas = AsyncFaas(BaseURL="https://faas.miromind.site")  # type: ignore
+        start = time.monotonic()
+        proxy = await Proxy.from_uploaded_scripts(faas, scripts)
+        print(proxy)
+        end = time.monotonic()
+        print(f"Proxy creation time: {end - start} seconds")
+        start = time.monotonic()
+        result = await proxy.execute_tool_call(
+            server_name="scrape",
+            tool_name="scrape_and_extract_info",
+            arguments={
+                "url": "https://news.ycombinator.com/",
+                "info_to_extract": "What are the top stories on Hacker News?",
+            },
+        )
+        end = time.monotonic()
+        print(f"Tool call time: {end - start} seconds")
+        print(result)
+
+
 class TestLocalServers:
     @staticmethod
     async def test_scrape():
@@ -108,5 +144,6 @@ class TestLocalServers:
 
 if __name__ == "__main__":
     # asyncio.run(TestAsyncFaas.test_upload_one())
-    asyncio.run(TestAsyncFaas.test_upload_many())
+    # asyncio.run(TestAsyncFaas.test_upload_many())
     # asyncio.run(TestLocalServers.test_scrape())
+    asyncio.run(TestRemoteServers.test_scrape())

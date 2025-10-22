@@ -34,9 +34,32 @@ class UploadResponse(BaseModel):
     @classmethod
     def from_response(cls, name: str, response: httpx.Response) -> "UploadResponse":
         payload = response.json()
+        # ending with slash is important:
+        # >>> from urllib.parse import urljoin
+        # >>> x = 'https://faas.miromind.site/faas/gateway/service-2d607\
+        # b7-183a-408e-a0af-56060fe5bc8f'
+        # >>> urljoin(x, "mcp")
+        # 'https://faas.miromind.site/faas/gateway/mcp'
+        # >>> urljoin(x, "/mcp")
+        # 'https://faas.miromind.site/mcp'
+        # >>> urljoin(x, "./mcp")
+        # 'https://faas.miromind.site/faas/gateway/mcp'
+        # >>> y = x + "/"
+        # >>> y
+        # 'https://faas.miromind.site/faas/gateway/service-2d607b7-183a-408e-a0af-56060fe5bc8f/'
+        # >>> urljoin(y, "mcp")
+        # 'https://faas.miromind.site/faas/gateway/service-2d607b7-183a-408e-a0af-56060fe5bc8f/mcp'
+        # >>> urljoin(y, "/mcp")
+        # 'https://faas.miromind.site/mcp'
+        # >>> urljoin(y, "./mcp")
+        # 'https://faas.miromind.site/faas/gateway/service-2d607b7-183a-408e-a0af-56060fe5bc8f/mcp'
+        base_url = payload["url"]
+        if not base_url.endswith("/"):
+            base_url += "/"
+        final_url = urljoin(base_url, "./mcp")
         return cls(
             name=name,
-            url=payload["url"],
+            url=HttpUrl(final_url),
             code=payload["code"],
             message=payload["message"],
         )
