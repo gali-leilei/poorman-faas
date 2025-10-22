@@ -1,0 +1,14 @@
+[project]
+name = "multiple-mcp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp>=1.18.0",
+    "pydantic>=2.12.3",
+    "requests>=2.32.5",
+    "tenacity>=9.1.2",
+    "wikipedia>=1.4.0",
+]

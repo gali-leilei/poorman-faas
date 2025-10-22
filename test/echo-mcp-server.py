@@ -12,11 +12,12 @@
 A simple MCP echo server that echoes back messages.
 """
 
+import os
+
+import uvicorn
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
-import uvicorn
-import os
 
 hidden_message = os.getenv("HIDDEN_MESSAGE", "failed")
 
