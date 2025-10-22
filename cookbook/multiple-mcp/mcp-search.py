@@ -377,12 +377,6 @@ async def make_serper_request(
         return response
 
 
-class SearchResult(TypedDict):
-    success: bool
-    error: str | None
-    results: list[dict[str, Any]]
-
-
 async def _google_search_internal(
     q: str,
     gl: str = "us",
