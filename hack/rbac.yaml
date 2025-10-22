@@ -2,14 +2,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: faas-gateway-sa
-  namespace: faas
+  namespace: miro-infra
+imagePullSecrets:
+  - name: registry-regcred
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: faas-gateway-role
-  namespace: faas
+  namespace: miro-infra
 rules:
 - apiGroups: [""]
   resources: ["configmaps", "services"]
@@ -23,11 +25,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: faas-gateway-rolebinding
-  namespace: faas
+  namespace: miro-infra
 subjects:
 - kind: ServiceAccount
   name: faas-gateway-sa
-  namespace: faas
+  namespace: miro-infra
 roleRef:
   kind: Role
   name: faas-gateway-role

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: faas
+  namespace: miro-infra
   name: faas-gateway
   labels:
     app: faas-gateway
@@ -14,13 +14,16 @@ spec:
     metadata:
       labels:
         app: faas-gateway
+      annotations:
+        vci.volcengine.com/tls-enable: "true"
+        vke.volcengine.com/burst-to-vci: enforce # 固定使用该值，表示强制使用 VCI
     spec:
       serviceAccountName: faas-gateway-sa
       containers:
       - name: faas-gateway
         # only use local image
-        image: localhost/faas-gateway-app:latest
-        imagePullPolicy: Never
+        image: ghcr.io/miromindai/faas-gateway-app:latest
+        imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 8080
@@ -33,7 +36,7 @@ spec:
         - name: REAPER_TIME_TO_LIVE
           value: "10m"
         - name: K8S_NAMESPACE
-          value: "faas"
+          value: "miro-infra"
         - name: K8S_LOAD_BALANCER_PORT
           value: "8080"
         - name: PORT
