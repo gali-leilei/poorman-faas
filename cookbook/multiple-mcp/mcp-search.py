@@ -18,7 +18,7 @@ import datetime
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, TypedDict
 
 import httpx
 import requests
@@ -64,7 +64,7 @@ async def smart_request(url: str, params: Optional[Dict] = None) -> str:
         return response.text
 
 
-def request_to_json(content: str) -> Dict[str, Any]:
+def request_to_json(content: str) -> dict[str, Any]:
     """Parse JSON from request content."""
     return json.loads(content)
 
@@ -179,8 +179,8 @@ def _url_matches_blocked_pattern(page_url: str, blocked_url: str) -> bool:
 
 
 def _filter_search_results_by_blocked_urls(
-    search_results: List[str], blocked_urls: Optional[List[str]], context: str = ""
-) -> List[str]:
+    search_results: list[str], blocked_urls: list[str] | None, context: str = ""
+) -> list[str]:
     """
     Filter search results to exclude pages that match blocked URL patterns.
 
@@ -259,8 +259,6 @@ def filter_blocked_urls(search_results: str, blocked_urls: list) -> str:
     if not blocked_urls or not search_results:
         logger.debug("⚠️ No blocked URLs or empty search results, returning original")
         return search_results
-
-    import json
 
     try:
         # Try to parse as JSON first (Serper typically returns JSON)
@@ -429,7 +427,7 @@ def filter_blocked_urls(search_results: str, blocked_urls: list) -> str:
     ),
 )
 async def make_serper_request(
-    payload: Dict[str, Any], headers: Dict[str, str]
+    payload: dict[str, Any], headers: dict[str, str]
 ) -> httpx.Response:
     """Make HTTP request to Serper API with retry logic."""
     async with httpx.AsyncClient() as client:
@@ -442,17 +440,23 @@ async def make_serper_request(
         return response
 
 
+class SearchResult(TypedDict):
+    success: bool
+    error: str | None
+    results: list[dict[str, Any]]
+
+
 async def _google_search_internal(
     q: str,
     gl: str = "us",
     hl: str = "en",
-    location: str = None,
+    location: str | None = None,
     num: int = 10,
-    tbs: str = None,
+    tbs: str | None = None,
     page: int = 1,
-    autocorrect: bool = None,
-    blocked_urls: Optional[List[str]] = None,
-) -> str:
+    autocorrect: bool | None = None,
+    blocked_urls: list[str] | None = None,
+) -> SearchResult:
     """Internal function to perform google searches via Serper API with optional URL filtering.
 
     Args:
@@ -469,8 +473,16 @@ async def _google_search_internal(
     Returns:
         The search results, optionally filtered.
     """
+
+    def error(message: str) -> SearchResult:
+        return {
+            "success": False,
+            "error": message,
+            "results": [],
+        }
+
     if SERPER_API_KEY == "":
-        return "SERPER_API_KEY is not set, google_search tool is not available."
+        return error("SERPER_API_KEY is not set, google_search tool is not available.")
 
     # 检测查询中是否包含中文字符
     def contains_chinese(text):
@@ -486,18 +498,14 @@ async def _google_search_internal(
 
     # Validate required parameter
     if not q or not q.strip():
-        return {
-            "success": False,
-            "error": "Search query 'q' is required and cannot be empty",
-            "results": [],
-        }
+        return error("Search query 'q' is required and cannot be empty")
     try:
         # tool_name = "google_search"
         payload = {
             "q": q.strip(),
             "gl": gl,
             "hl": hl,
-            "num": 10,  # default value
+            "num": num,  # default value
             "page": page,
             "autocorrect": autocorrect,
         }
@@ -535,19 +543,23 @@ async def _google_search_internal(
         if blocked_urls:
             result_content = filter_blocked_urls(result_content, blocked_urls)
 
-        return decode_percent_encoded_urls(
-            result_content, input_type="text"
-        )  # Success, exit retry loop
-    except Exception as error:
-        return f"[ERROR]: google_search tool execution failed: {str(error)}"
+        return {
+            "success": True,
+            "error": None,
+            "results": decode_percent_encoded_urls(result_content, input_type="text"),
+        }
+    except Exception as e:
+        return error(f"[ERROR]: google_search tool execution failed: {str(e)}")
 
-    return "[ERROR]: Unknown error occurred in google_search tool, please try again."
+    return error(
+        "[ERROR]: Unknown error occurred in google_search tool, please try again."
+    )
 
 
 # @mcp.tool()
 async def google_search_internal_filtered(
     q: str,
-    blocked_urls: List[str],
+    blocked_urls: list[str],
     gl: str = "us",
     hl: str = "en",
     location: str = None,
@@ -590,11 +602,11 @@ async def google_search(
     q: str,
     gl: str = "us",
     hl: str = "en",
-    location: str = None,
+    location: str | None = None,
     num: int = 10,
-    tbs: str = None,
+    tbs: str | None = None,
     page: int = 1,
-    autocorrect: bool = None,
+    autocorrect: bool | None = None,
 ) -> str:
     """Perform google searches via Serper API and retrieve rich results.
     It is able to retrieve organic search results, people also ask, related searches, and knowledge graph.
@@ -626,7 +638,7 @@ async def google_search(
 
 
 async def _wiki_get_page_content_internal(
-    entity: str, first_sentences: int = 10, blocked_urls: Optional[List[str]] = None
+    entity: str, first_sentences: int = 10, blocked_urls: list[str] | None = None
 ) -> str:
     """Internal function to get Wikipedia page content with optional URL filtering.
 
@@ -806,7 +818,7 @@ async def _wiki_get_page_content_internal(
 
 # @mcp.tool()
 async def wiki_get_page_content_internal_filtered(
-    entity: str, blocked_urls: List[str], first_sentences: int = 10
+    entity: str, blocked_urls: list[str], first_sentences: int = 10
 ) -> str:
     """🔒 INTERNAL: Wikipedia page content with URL filtering via MCP. Hidden from model prompts.
 
