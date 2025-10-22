@@ -7,3 +7,6 @@ bin/*
 # environment
 .env
 .idea
+
+# python cache
+**/__pycache__
