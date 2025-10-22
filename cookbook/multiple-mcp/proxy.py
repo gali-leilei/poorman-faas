@@ -1,7 +1,8 @@
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Mapping, Protocol, cast
 
+from client import AsyncFaas, UploadRequest
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import StdioServerParameters, stdio_client
@@ -44,7 +45,7 @@ Config = StdIOConfig | SSEConfig | StreamableHttpConfig
 @asynccontextmanager
 async def connect(cfg: Config):
     """
-    returns a mcp.ClientSession instance, depending on Config.
+    Returns a `mcp.ClientSession` instance, depending on `Config`.
     """
     async with AsyncExitStack() as stack:
         read, write = None, None
@@ -96,25 +97,39 @@ class Proxy(ProxyProtocol, LoggingMixin):
     Supports all transport types: stdio, sse, streamable_http.
     """
 
-    server_dict: dict[str, Config]
+    server_dict: Mapping[str, Config]
 
     @classmethod
-    def from_streamable_http(cls, files: dict[str, bytes]) -> "Proxy":
+    async def from_uploaded_scripts(
+        cls, client: AsyncFaas, scripts: list[UploadRequest]
+    ) -> "Proxy":
         """
         Create a Proxy from a dictionary of PEP 723 python scripts.
-        :param files: Dictionary of files
+        :param client: AsyncClient
+        :param scripts: Dictionary of UploadRequests
         :return: Proxy
         """
-        return cls(
-            server_dict={
-                file_name: StreamableHttpConfig(
-                    name=file_name,
-                    kind="streamable_http",
-                    url=HttpUrl(f"http://localhost:8000/files/{file_name}"),
-                )
-                for file_name in files.keys()
-            }
-        )
+
+        responses = await client.upload_many(scripts)
+        server_dict = {
+            response.name: StreamableHttpConfig(
+                name=response.name,
+                kind="streamable_http",
+                url=response.url,
+            )
+            for response in responses
+        }
+
+        return cls(server_dict=server_dict)
+
+    @classmethod
+    async def from_local_servers(cls, server_dict: Mapping[str, Config]) -> "Proxy":
+        """
+        Create a Proxy from a dictionary of local servers.
+        :param server_dict: Dictionary of server configurations
+        :return: Proxy
+        """
+        return cls(server_dict=server_dict)
 
     async def get_all_tool_definitions(self):
         """
