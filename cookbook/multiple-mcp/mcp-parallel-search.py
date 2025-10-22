@@ -6,24 +6,18 @@
 # dependencies = [
 #     "httpx",
 #     "mcp",
-#     "requests",
 #     "starlette",
 #     "tenacity",
-#     "wikipedia",
 # ]
 # ///
 
 import asyncio
-import calendar
-import datetime
 import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
 
 import httpx
-import requests
-import wikipedia
 from mcp.server.fastmcp import FastMCP
 from tenacity import (
     retry,
