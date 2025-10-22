@@ -57,7 +57,8 @@ async def scrape_and_extract_info(
     llm_model_name = None
     llm_api_key = None
     config_overrides = []
-    request_headers = context.request_context.request.headers
+    request = context.request_context.request
+    request_headers = request.headers if request else None
 
     if request_headers:
         llm_base_url = request_headers.get("X-Summary-LLM-Base-URL")
@@ -72,9 +73,9 @@ async def scrape_and_extract_info(
             config_overrides.append(f"SUMMARY_LLM_API_KEY: ***{llm_api_key[-4:]}")
 
     # Use defaults if not overridden
-    llm_base_url = llm_base_url or SUMMARY_LLM_BASE_URL
-    llm_model_name = llm_model_name or SUMMARY_LLM_MODEL_NAME
-    llm_api_key = llm_api_key or SUMMARY_LLM_API_KEY
+    llm_base_url = llm_base_url or SUMMARY_LLM_BASE_URL or ""
+    llm_model_name = llm_model_name or SUMMARY_LLM_MODEL_NAME or ""
+    llm_api_key = llm_api_key or SUMMARY_LLM_API_KEY or ""
 
     # Print configuration information
     if config_overrides:
@@ -202,6 +203,7 @@ async def scrape_url_with_jina(url: str, max_chars: int = 102400 * 4) -> Dict[st
     # Construct the Jina.ai API URL
     jina_url = f"{jina_base_url}/{url}"
 
+    response = None
     try:
         # Prepare headers
         headers = {
@@ -273,9 +275,10 @@ async def scrape_url_with_jina(url: str, max_chars: int = 102400 * 4) -> Dict[st
 
             except httpx.HTTPStatusError as e:
                 if attempt < len(retry_delays):
-                    print(
-                        f"Jina Scrape: HTTP error: {e}, response.text: {response.text}, url: {url}, {delay}s before next attempt (attempt {attempt + 1})"
-                    )
+                    if response is not None:
+                        print(
+                            f"Jina Scrape: HTTP error: {e}, response.text: {response.text}, url: {url}, {delay}s before next attempt (attempt {attempt + 1})"
+                        )
                     await asyncio.sleep(delay)
                     continue
                 else:
@@ -312,7 +315,7 @@ async def scrape_url_with_jina(url: str, max_chars: int = 102400 * 4) -> Dict[st
         }
 
     # Get the scraped content
-    content = response.text
+    content = response.text if response else ""
 
     if not content:
         return {
@@ -407,8 +410,8 @@ async def extract_info_with_llm(
     info_to_extract: str,
     model: str = "LLM",
     max_tokens: int = 4096,
-    llm_base_url: str = None,
-    llm_api_key: str = None,
+    llm_base_url: str | None = None,
+    llm_api_key: str | None = None,
 ) -> Dict[str, Any]:
     """
     Summarize content using an LLM API.
@@ -431,8 +434,8 @@ async def extract_info_with_llm(
     """
 
     # Use provided values or fall back to defaults
-    base_url = llm_base_url or SUMMARY_LLM_BASE_URL
-    api_key = llm_api_key or SUMMARY_LLM_API_KEY
+    base_url = llm_base_url or SUMMARY_LLM_BASE_URL or ""
+    api_key = llm_api_key or SUMMARY_LLM_API_KEY or ""
 
     # Validate input
     if not content or not content.strip():
@@ -480,6 +483,7 @@ async def extract_info_with_llm(
         "Authorization": f"Bearer {api_key}",
     }
 
+    response = None
     try:
         # Retry configuration
         connect_retry_delays = [1, 2, 4, 8]
@@ -559,11 +563,12 @@ async def extract_info_with_llm(
                     raise e
 
             except httpx.HTTPStatusError as e:
+                text = response.text if response else ""
                 print(
-                    f"Jina Scrape and Extract Info: HTTP error for LLM API: {e}, response.text: {response.text}"
+                    f"Jina Scrape and Extract Info: HTTP error for LLM API: {e}, response.text: {text}"
                 )
                 raise httpx.HTTPStatusError(
-                    f"response.text: {response.text}",
+                    f"response.text: {text}",
                     request=e.request,
                     response=e.response,
                 ) from e
@@ -583,15 +588,20 @@ async def extract_info_with_llm(
         }
 
     # Parse the response
+    response_data = {}
     try:
-        response_data = response.json()
+        if response is not None:
+            response_data = response.json()
 
     except json.JSONDecodeError as e:
         error_msg = (
             f"Jina Scrape and Extract Info: Failed to parse LLM API response: {str(e)}"
         )
         print(error_msg)
-        print(f"Raw response: {response.text}")
+        if response is not None:
+            print(f"Raw response: {response.text}")
+        else:
+            print("No response from LLM API")
         return {
             "success": False,
             "extracted_info": "",
