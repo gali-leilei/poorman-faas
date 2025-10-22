@@ -689,6 +689,8 @@ if __name__ == "__main__":
     import uvicorn
     from starlette.responses import JSONResponse
 
+    port = int(os.getenv("PORT", "8000"))
+
     # Health check endpoint
     async def health_check(request):
         """
@@ -701,4 +703,4 @@ if __name__ == "__main__":
 
     asgi_app = mcp.streamable_http_app()
     asgi_app.add_route("/health", health_check)
-    uvicorn.run(asgi_app, host="0.0.0.0", port=8000)
+    uvicorn.run(asgi_app, host="0.0.0.0", port=port)
